@@ -111,6 +111,33 @@
   .cnow{ position:absolute; left:-54px; right:0; border-top:2px solid #d9754f; z-index:7; }
   .calside{ width:340px; } .calh4{ font-size:12px; color:var(--muted); font-weight:500; margin:0 0 8px; text-transform:lowercase; letter-spacing:.04em; }
   .addblock .fld{ width:100%; } .timerow{ display:flex; align-items:center; gap:6px; margin-top:12px; flex-wrap:wrap; } .timerow select{ padding:6px 6px; } .tlab{ font-size:12px; color:var(--muted); } .tcolon{ color:var(--muted); }
+  .cdside{ width:250px; }
+  .cdbox{ border:1px solid var(--line); border-radius:12px; padding:14px 15px; }
+  .cdsw{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); margin-bottom:8px; cursor:pointer; }
+  .cdsw input{ margin:0; }
+  .cdsw.off{ opacity:.55; }
+  .cdhead4{ display:flex; align-items:center; gap:8px; }
+  .cdmaster{ display:flex; align-items:center; cursor:pointer; }
+  .cdmaster input{ margin:0; }
+  .cdhead4 .cdoff{ opacity:.5; }
+  .cdquiet{ font-size:12px; color:var(--muted2); line-height:1.6; }
+  .cdsec{ font-size:10.5px; color:var(--muted2); text-transform:uppercase; letter-spacing:.05em; margin:16px 0 7px; }
+  .cdtimes{ display:flex; flex-wrap:wrap; gap:6px; }
+  .cdtimes input[type=time]{ font-size:12px; padding:4px 6px; }
+  .cdadd{ border:1px dashed var(--line); background:none; color:var(--muted); border-radius:8px; font-size:12px; padding:4px 9px; cursor:pointer; }
+  .cdadd:hover{ border-color:var(--accent); color:var(--ink); }
+  .cditem{ display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+  .cditem input{ flex:1; font-size:12.5px; border:none; background:none; padding:3px 0; border-bottom:1px solid transparent; border-radius:0; }
+  .cditem input:focus{ border-bottom-color:var(--accent); }
+  .cdnew{ width:100%; font-size:12px; border:none; border-top:1px solid var(--line); border-radius:0; padding:8px 2px 2px; background:none; margin-top:4px; }
+  .cdnew:focus{ box-shadow:none; }
+  .cdfoot{ font-size:11.5px; color:var(--muted2); margin-top:14px; line-height:1.5; }
+  .cdfoot a{ color:var(--accent); cursor:pointer; text-decoration:none; }
+  .cdnudge{ display:none; position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--accent); border-radius:11px; padding:13px 17px; z-index:60; box-shadow:0 8px 28px rgba(0,0,0,.45); max-width:92vw; align-items:center; gap:14px; }
+  .cdnudge.show{ display:flex; animation:cdin .5s ease; }
+  @keyframes cdin{ from{ opacity:0; transform:translate(-50%,-8px);} to{ opacity:1; transform:translate(-50%,0);} }
+  .cdnudge .cdhead{ font-size:13.5px; color:var(--accent); white-space:nowrap; }
+  .cdnudge .cdlist{ font-size:13px; color:var(--ink); }
   .ibrow{ display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); } .ibrow:last-child{ border-bottom:none; } .ibtext{ flex:1; font-size:13.5px; }
   .unrow{ display:flex; align-items:center; gap:8px; margin-bottom:8px; } .undot{ width:9px; height:9px; border-radius:50%; flex:none; } .unname{ flex:1; font-size:13px; }
   .cbplay{ position:absolute; top:3px; right:26px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:0; } .cbplay:hover{ color:var(--accent); }
@@ -225,6 +252,11 @@
   <button class="btn" onclick="exportData();document.getElementById('reminder').classList.remove('show')">Export now</button>
   <button class="del" onclick="document.getElementById('reminder').classList.remove('show')">&times;</button>
 </div>
+<div id="cdnudge" class="cdnudge">
+  <span class="cdhead">&#10022; Cool down</span>
+  <span class="cdlist"></span>
+  <button class="del" onclick="cdHide()">&times;</button>
+</div>
 <div id="tpill" class="tpill" onclick="timerToggle()">&#9201; <span id="tpillt">Focus</span></div>
 <div id="tpanel" class="tpanel">
   <div class="tph"><div class="tmodes"><button id="tm-pomodoro" class="tmode active" onclick="timerMode('pomodoro')">Pomodoro</button><button id="tm-flow" class="tmode" onclick="timerMode('flow')">Flow</button></div><button class="del" onclick="timerToggle()">&times;</button></div>
@@ -299,9 +331,6 @@ function seed(){
       mk("Scope funding proposal",gFun.id,"today"), mk("Thesis outline",gThe.id,"week"),
       mk("Grammar unit 5",gGer.id,"today") ],
     habits:[ {id:uid(),name:"German",min:30,goalId:gGer.id,done:{}}, {id:uid(),name:"Piano",min:30,goalId:null,done:{}}, {id:uid(),name:"Reading",min:30,goalId:null,done:{}} ] };
-}
-function blank(){
-  return { goals:[], tasks:[], habits:[], sessions:[], events:[], inbox:[], journal:{} };
 }
 function persist(){ localStorage.setItem(KEY,JSON.stringify(state)); }
 function save(){ persist(); history=history.slice(0,hi+1); history.push(JSON.stringify(state)); if(history.length>80) history.shift(); hi=history.length-1; }
@@ -543,8 +572,47 @@ function calendarHTML(){
   const now=new Date(); let nowLine=''; if(!planningAhead() && now.getHours()>=DS && now.getHours()<DE){ const top=(now.getHours()*60+now.getMinutes()-DS*60)/60*HH; nowLine=`<div class="cnow" style="top:${top}px"></div>`; }
   const cands=state.tasks.filter(t=>brank(t)>=3 && !t.done);
   const side=`<div class="calside"><h4 class="calh4">${dayWord()}, ${prettyDate(PD())} — drag a card onto the timeline to block it</h4>${column('caltoday','today',dayWord(),state.tasks,'',true)}<div class="unrow" style="margin-top:16px"><input type="text" id="evLabel" placeholder="Meeting / lunch…" style="flex:1"><input type="time" id="evStart" value="12:00"><input type="number" id="evMin" value="60" min="15" step="15" style="width:52px"><button class="btn" style="padding:5px 10px;font-size:12px" onclick="addEvent()">Add</button></div></div>`;
-  return `<div class="calwrap"><div class="caltl" style="height:${height}px" ondragover="event.preventDefault()" ondrop="calDrop(event)">${lines}${bl}${nowLine}</div>${side}</div>`;
+  return `<div class="calwrap"><div class="caltl" style="height:${height}px" ondragover="event.preventDefault()" ondrop="calDrop(event)">${lines}${bl}${nowLine}</div>${side}${cooldownHTML()}</div>`;
 }
+
+// ── Cooldown / socialise ──────────────────────────────────────────────
+// Daily rituals, not tasks and not habits: no ticking, no streaks, no state
+// per day. Just a list, a few times of day, and two switches. At each time a
+// soft banner appears with the list; if the tab is in the background the tab
+// title and favicon carry the signal instead, and the banner waits until you
+// come back (but only while the moment is still fresh).
+const CD_WINDOW=20;            // minutes a nudge stays relevant
+const CD_FADE=90000;           // banner fades itself after 90s
+function cd(){ if(!state.cooldown) state.cooldown={on:true,chime:false,times:["11:00","15:00","19:00"],items:["Clean the teapot","Sweet dish from the fridge","Check out at the pull-up bar"]}; return state.cooldown; }
+function cdSet(f,v){ cd()[f]=v; if(f==='on'&&!v) cdHide(); save(); render(); }
+function cdSetTime(i,v){ const c=cd(); if(!v) c.times.splice(i,1); else c.times[i]=v; c.times.sort(); save(); render(); }
+function cdDelTime(i){ cd().times.splice(i,1); save(); render(); }
+function cdAddTime(){ cd().times.push("18:00"); save(); render(); }
+function cdSetItem(i,v){ const c=cd(); v=(v||'').trim(); if(!v) c.items.splice(i,1); else c.items[i]=v; save(); render(); }
+function cdDelItem(i){ cd().items.splice(i,1); save(); render(); }
+function cdAddItem(el){ const v=(el.value||'').trim(); if(!v) return; cd().items.push(v); el.value=''; save(); render(); }
+function cooldownHTML(){
+  const c=cd();
+  const head=`<h4 class="calh4 cdhead4"><label class="cdmaster" title="Use cooldown / socialise"><input type="checkbox" ${c.on?'checked':''} onchange="cdSet('on',this.checked)"></label><span class="${c.on?'':'cdoff'}">cooldown · socialise</span></h4>`;
+  if(!c.on) return `<div class="cdside">${head}<div class="cdbox cdquiet">Off — no nudges, nothing on screen. Flip the switch whenever you want it back.</div></div>`;
+  const times=c.times.map((t,i)=>`<span style="display:flex;align-items:center;gap:2px"><input type="time" value="${t}" onchange="cdSetTime(${i},this.value)"><button class="del" title="Remove time" onclick="cdDelTime(${i})">&times;</button></span>`).join('');
+  const items=c.items.map((it,i)=>`<div class="cditem"><input type="text" value="${esc(it)}" onchange="cdSetItem(${i},this.value)"><button class="del" onclick="cdDelItem(${i})">&times;</button></div>`).join('') || '<div class="muted" style="font-size:12px">Nothing yet — add a ritual below.</div>';
+  return `<div class="cdside">${head}<div class="cdbox">
+    <label class="cdsw"><input type="checkbox" ${c.chime?'checked':''} onchange="cdSet('chime',this.checked)"> Soft chime</label>
+    <div class="cdsec">times</div><div class="cdtimes">${times}<button class="cdadd" onclick="cdAddTime()">+ time</button></div>
+    <div class="cdsec">rituals</div>${items}
+    <input class="cdnew" type="text" placeholder="+ add a ritual" onkeydown="if(event.key==='Enter'){cdAddItem(this)}">
+    <div class="cdfoot">Nothing to tick off — just a nudge to step away. <a onclick="cdShow()">Preview</a></div>
+  </div></div>`;
+}
+let cdPending=null, cdHideT=null, cdTitleOn=false, cdIcon=null;
+let cdFired=(()=>{ try{ return JSON.parse(localStorage.getItem("myplanner.cdfired")||"{}"); }catch(e){ return {}; } })();
+function cdFlagTab(on){ if(on===cdTitleOn) return; cdTitleOn=on; const l=document.querySelector("link[rel=icon]"); if(l&&!cdIcon) cdIcon=l.getAttribute('href'); document.title = on ? "\u2726 Cool down \u00b7 Lodestar" : "Lodestar"; if(l&&cdIcon) l.setAttribute('href', on ? cdIcon.replace('%237FA6C6','%23d9754f') : cdIcon); }
+function cdShow(){ const el=document.getElementById('cdnudge'); if(!el) return; const c=cd(); el.querySelector('.cdlist').textContent = c.items.length ? c.items.join(' \u00b7 ') : 'Step away for a few minutes.'; el.classList.add('show'); cdPending=null; cdFlagTab(true); clearTimeout(cdHideT); cdHideT=setTimeout(cdHide,CD_FADE); }
+function cdHide(){ const el=document.getElementById('cdnudge'); if(el) el.classList.remove('show'); cdPending=null; cdFlagTab(false); clearTimeout(cdHideT); }
+function cdFire(t){ if(cd().chime) beep(); cdFlagTab(true); if(document.hidden){ cdPending={until:timeToMin(t)+CD_WINDOW}; } else cdShow(); }
+function checkCooldown(){ const c=cd(); if(!c.on) return; const now=new Date(); const dk=fmt(now), mins=now.getHours()*60+now.getMinutes(); if(cdFired.d!==dk){ cdFired={d:dk,s:{}}; } (c.times||[]).forEach(t=>{ if(!t||cdFired.s[t]) return; const m=timeToMin(t); if(mins>=m && mins<m+CD_WINDOW){ cdFired.s[t]=1; localStorage.setItem("myplanner.cdfired",JSON.stringify(cdFired)); cdFire(t); } }); }
+document.addEventListener("visibilitychange",()=>{ if(document.hidden||!cdPending) return; const now=new Date(); const mins=now.getHours()*60+now.getMinutes(); if(mins<cdPending.until) cdShow(); else cdHide(); });
 function habitsHTML(){
   const now=new Date(T);
   const list = state.habits.length? state.habits.map(h=>{
@@ -590,7 +658,7 @@ function render(){
 // tools
 function exportData(){ const b=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="lodestar-backup-"+TS+".json"; a.click(); }
 function importData(inp){ const f=inp.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.tasks&&d.goals&&d.habits){ state=d; currentBoard=null; save(); render(); alert("Imported."); } else alert("Not a Lodestar backup."); }catch(e){ alert("Could not read that file."); } }; r.readAsText(f); inp.value=""; }
-function resetData(){ if(!confirm("⚠ WARNING\n\nThis ERASES everything and gives you a blank planner.\n\nA backup will download first. This cannot be undone otherwise.\n\nContinue?")) return; exportData(); setTimeout(()=>{ if(confirm("Backup downloaded. Proceed with the reset now?")){ state=blank(); currentBoard=null; texpanded=new Set(); save(); render(); } }, 400); }
+function resetData(){ if(!confirm("⚠ WARNING\n\nThis ERASES everything and loads sample data.\n\nA backup will download first. This cannot be undone otherwise.\n\nContinue?")) return; exportData(); setTimeout(()=>{ if(confirm("Backup downloaded. Proceed with the reset now?")){ state=seed(); currentBoard=null; texpanded=new Set(); save(); render(); } }, 400); }
 
 // focus timer (wall-clock based so background tabs never undercount)
 let tMode="pomodoro", tRunning=false, tPhase="work", tRemain=1500, tTick=null, tTaskId="", tWork=25, tBreak=5, tEnd=0, tFlowBase=0, tRunStart=0;
@@ -648,8 +716,11 @@ themeName=localStorage.getItem("myplanner.theme")||"dark"; applyThemeVars(themeN
 render();
 { const _b=document.getElementById("themeBtn"); if(_b) _b.textContent = themeName==="dark"?"☾":"☀"; }
 updateInboxBadge();
+cd();
 checkSchedule();
+checkCooldown();
 setInterval(checkSchedule, 60000);
+setInterval(checkCooldown, 60000);
 setInterval(checkRollover, 30000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkRollover(); });
 </script>
