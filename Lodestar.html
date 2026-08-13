@@ -317,26 +317,19 @@ const DEFAULT_COLLAPSE=["someday","quarter","done"];
 const DOMAIN_PALETTE=["#7FA6C6","#8FBBA1","#D08E68","#A283BC","#C7A24E"];
 const PILLAR_COLORS=["#6f9dc4","#cb9a52","#5fae91","#b083c0","#d08a6a","#7fae5f","#c77f9e","#7f8fd0"];
 
-function seed(){
-  const gHab={id:uid(),name:"Habilitation",target:"2027-09-30",parentGoalId:null,accent:"#7FA6C6"};
-  const gEv={id:uid(),name:"Evergreen",target:"",parentGoalId:null,accent:"#8FBBA1"};
-  const gRes={id:uid(),name:"Research papers",target:"",parentGoalId:gHab.id};
-  const gTea={id:uid(),name:"Teaching",target:"",parentGoalId:gHab.id};
-  const gFun={id:uid(),name:"Funding",target:"",parentGoalId:gHab.id};
-  const gThe={id:uid(),name:"Habilitation thesis",target:"",parentGoalId:gHab.id};
-  const gGer={id:uid(),name:"German (B1)",target:"",parentGoalId:gEv.id};
-  const mk=(name,goalId,bucket)=>({id:uid(),name,goalId,parentId:null,bucket:bucket||"someday",done:false});
-  return { goals:[gHab,gEv,gRes,gTea,gFun,gThe,gGer],
-    tasks:[ mk("Paper: methods study",gRes.id,"today"), mk("Design new seminar",gTea.id,"week"),
-      mk("Scope funding proposal",gFun.id,"today"), mk("Thesis outline",gThe.id,"week"),
-      mk("Grammar unit 5",gGer.id,"today") ],
-    habits:[ {id:uid(),name:"German",min:30,goalId:gGer.id,done:{}}, {id:uid(),name:"Piano",min:30,goalId:null,done:{}}, {id:uid(),name:"Reading",min:30,goalId:null,done:{}} ] };
+// A completely empty state — no sample tasks, no sample habits, no sample
+// rituals. This is what a fresh copy of Lodestar looks like, and what Reset
+// returns you to. There is deliberately no seed data anywhere in this file.
+function blank(){
+  return { goals:[{id:uid(),name:"New board",target:"",parentGoalId:null,accent:DOMAIN_PALETTE[0]}],
+    tasks:[], habits:[], sessions:[], events:[], inbox:[], journal:{},
+    cooldown:{on:false,chime:false,times:["11:00","15:00","19:00"],items:[]} };
 }
 function persist(){ localStorage.setItem(KEY,JSON.stringify(state)); }
 function save(){ persist(); history=history.slice(0,hi+1); history.push(JSON.stringify(state)); if(history.length>80) history.shift(); hi=history.length-1; }
 function undo(){ if(hi>0){ hi--; state=JSON.parse(history[hi]); persist(); render(); } }
 function redo(){ if(hi<history.length-1){ hi++; state=JSON.parse(history[hi]); persist(); render(); } }
-function load(){ try{ const s=localStorage.getItem(KEY); state=s?JSON.parse(s):seed(); }catch(e){ state=seed(); } if(!state||!state.tasks) state=seed(); }
+function load(){ try{ const s=localStorage.getItem(KEY); state=s?JSON.parse(s):blank(); }catch(e){ state=blank(); } if(!state||!state.tasks) state=blank(); }
 
 function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function fmt(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -583,7 +576,7 @@ function calendarHTML(){
 // come back (but only while the moment is still fresh).
 const CD_WINDOW=20;            // minutes a nudge stays relevant
 const CD_FADE=90000;           // banner fades itself after 90s
-function cd(){ if(!state.cooldown) state.cooldown={on:true,chime:false,times:["11:00","15:00","19:00"],items:["Clean the teapot","Sweet dish from the fridge","Check out at the pull-up bar"]}; return state.cooldown; }
+function cd(){ if(!state.cooldown) state.cooldown={on:false,chime:false,times:["11:00","15:00","19:00"],items:[]}; return state.cooldown; }
 function cdSet(f,v){ cd()[f]=v; if(f==='on'&&!v) cdHide(); save(); render(); }
 function cdSetTime(i,v){ const c=cd(); if(!v) c.times.splice(i,1); else c.times[i]=v; c.times.sort(); save(); render(); }
 function cdDelTime(i){ cd().times.splice(i,1); save(); render(); }
@@ -658,7 +651,7 @@ function render(){
 // tools
 function exportData(){ const b=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="lodestar-backup-"+TS+".json"; a.click(); }
 function importData(inp){ const f=inp.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.tasks&&d.goals&&d.habits){ state=d; currentBoard=null; save(); render(); alert("Imported."); } else alert("Not a Lodestar backup."); }catch(e){ alert("Could not read that file."); } }; r.readAsText(f); inp.value=""; }
-function resetData(){ if(!confirm("⚠ WARNING\n\nThis ERASES everything and loads sample data.\n\nA backup will download first. This cannot be undone otherwise.\n\nContinue?")) return; exportData(); setTimeout(()=>{ if(confirm("Backup downloaded. Proceed with the reset now?")){ state=seed(); currentBoard=null; texpanded=new Set(); save(); render(); } }, 400); }
+function resetData(){ if(!confirm("\u26a0 WARNING\n\nThis ERASES everything and leaves a completely empty board.\n\nA backup will download first. This cannot be undone otherwise.\n\nContinue?")) return; exportData(); setTimeout(()=>{ if(confirm("Backup downloaded. Proceed with the reset now?")){ state=blank(); currentBoard=null; view="overview"; mid=null; texpanded=new Set(); colState={}; cdFired={}; cdHide(); ["myplanner.colstate","myplanner.cdfired","myplanner.lastreminder"].forEach(k=>localStorage.removeItem(k)); history=[]; hi=-1; save(); render(); } }, 400); }
 
 // focus timer (wall-clock based so background tabs never undercount)
 let tMode="pomodoro", tRunning=false, tPhase="work", tRemain=1500, tTick=null, tTaskId="", tWork=25, tBreak=5, tEnd=0, tFlowBase=0, tRunStart=0;
